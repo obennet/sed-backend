@@ -926,6 +926,18 @@ def create_design(db_connection: PooledMySQLConnection, design_post: models.Desi
         .execute(fetch_type=FetchType.FETCH_NONE)
     design_id = insert_statement.last_insert_id
 
+    table_rows = get_all_table_rows(db_connection, vcs_id, project_id, user_id)
+
+    # Create market input for each table row
+
+    for row in table_rows:
+        market_input = models.MarketInputPost(
+            time=0,
+            cost=0,
+            revenue=0
+        )
+        create_market_input(db_connection, design_id, row.id, market_input)
+
     return get_design(db_connection, design_id, project_id, vcs_id, user_id)
 
 def get_design(db_connection: PooledMySQLConnection, design_id: int, project_id: int, vcs_id: int, user_id: int) -> models.Design:

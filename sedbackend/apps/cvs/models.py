@@ -314,6 +314,6 @@ class MarketInputGet(BaseModel):
 
 
 class MarketInputPost(BaseModel):
-    time: float
-    cost: float
-    revenue: float
+    time: Optional[float] = None
+    cost: Optional[float] = None
+    revenue: Optional[float] = None

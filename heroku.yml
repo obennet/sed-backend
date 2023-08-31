@@ -1,4 +1,4 @@
 build:
   docker:
-    backend-api: Dockerfile-backend-api
+    web: Dockerfile-backend-api
     core-db: Dockerfile-mysql-server

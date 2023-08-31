@@ -1,9 +1,45 @@
 build:
   docker:
     web: Dockerfile-backend-api
-    config:
-      - PATH: Dockerfile-mysql-server
-      - MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
-      - MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
-      - MYSQL_USER: rw
-      - MYSQL_DATABASE: seddb
+    db: Dockerfile-mysql-server
+
+# Declare the services
+services:
+  core-db:
+    image:
+      context: .
+      dockerfile: Dockerfile-mysql-server
+    env:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
+      MYSQL_USER: rw
+      MYSQL_DATABASE: seddb
+    secrets:
+      - source: mysql_root_password
+        target: mysql_root_password
+      - source: mysql_user_password
+        target: mysql_user_password
+    volumes:
+      - persistent-volume:/var/lib/mysql
+    ports:
+      - 3001:3306
+
+  backend-api:
+    image:
+      context: .
+      dockerfile: Dockerfile-backend-api
+    env:
+      PORT: 80
+    volumes:
+      - uploaded-files:/sed_lab/uploaded_files/
+    ports:
+      - 8000:80
+    depends_on:
+      - core-db
+
+# Declare the secrets
+secrets:
+  mysql_root_password:
+    source: env/MYSQL_PWD_ROOT.txt
+  mysql_user_password:
+    source: env/MYSQL_PWD_RW.txt

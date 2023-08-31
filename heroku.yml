@@ -1,4 +1,9 @@
 build:
   docker:
     web: Dockerfile-backend-api
-    db: Dockerfile-mysql-server
+    config:
+      - PATH: Dockerfile-mysql-server
+      - MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      - MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
+      - MYSQL_USER: rw
+      - MYSQL_DATABASE: seddb

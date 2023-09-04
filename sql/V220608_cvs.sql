@@ -71,15 +71,12 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_iso_processes`
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_subprocesses`
 (
     `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `vcs`           INT UNSIGNED NOT NULL,
-    `name`          TEXT NOT NULL,
+    `project`       INT UNSIGNED NOT NULL,
+    `name`          VARCHAR(255) NOT NULL,
     `iso_process`   INT UNSIGNED NOT NULL,
     FOREIGN KEY (`iso_process`)
         REFERENCES `seddb`.`cvs_iso_processes`(`id`)
 	    ON DELETE CASCADE,
-    FOREIGN KEY(`vcs`) REFERENCES  `seddb`.`cvs_vcss`(`id`)
-        ON DELETE CASCADE
-
 );
 
 #The rows of the vcs table
@@ -146,10 +143,16 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_value_drivers`
     `user`              INT UNSIGNED NOT NULL,
     `name`              TEXT NOT NULL,
     `unit`              VARCHAR(10) NULL,
+    `project`        INT UNSIGNED NOT NULL,
     FOREIGN KEY(`user`)
         REFERENCES  `seddb`.`users`(`id`)
+        ON DELETE CASCADE,
+    FOREIGN KEY(`project`)
+        REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE
 );
+ALTER TABLE `seddb`.`cvs_value_drivers` ADD CONSTRAINT unq_project_name_unit
+    UNIQUE (project, name(20), unit);
 
 #Vcs row and value driver connection
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vcs_need_drivers`
@@ -262,12 +265,16 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vd_design_values`
 
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_design_mi_formulas`
 (
+    `project`           INT UNSIGNED NOT NULL,
     `vcs_row`           INT UNSIGNED NOT NULL,
     `design_group`      INT UNSIGNED NOT NULL,
-    `time`              TEXT,
+    `time`              TEXT NULL,
+    `time_comment`      TEXT NULL,
     `time_unit`         VARCHAR(10),
     `cost`              TEXT,
+    `cost_comment`      TEXT NULL,
     `revenue`           TEXT,
+    `revenue_comment`   TEXT NULL,
     `rate`              TEXT,
     PRIMARY KEY (`vcs_row`, `design_group`),
     FOREIGN KEY(`vcs_row`)
@@ -275,6 +282,9 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_design_mi_formulas`
         ON DELETE CASCADE,
     FOREIGN KEY (`design_group`)
         REFERENCES `seddb`.`cvs_design_groups`(`id`)
+        ON DELETE CASCADE,
+    ADD FOREIGN KEY (`project`)
+        REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE,
     CONSTRAINT `check_unit` CHECK (`time_unit` IN ('MINUTES', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR')),
     CONSTRAINT `check_rate` CHECK (`rate` IN ('per_product', 'per_project'))
@@ -306,30 +316,39 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_market_input_values`
         ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_market_inputs`
+CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_external_factors`
 (
-    `formulas`      INT UNSIGNED NOT NULL,
-    `market_input`  INT UNSIGNED NOT NULL,
-    PRIMARY KEY(`formulas`, `market_input`),
-    FOREIGN KEY (`formulas`)
-        REFERENCES `seddb`.`cvs_design_mi_formulas`(`vcs_row`)
+    `vcs_row`         INT UNSIGNED NOT NULL,
+    `design_group`    INT UNSIGNED NOT NULL,
+    `external_factor` INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`vcs_row`, `design_group`, `external_factor`),
+    FOREIGN KEY (`vcs_row`)
+        REFERENCES `seddb`.`cvs_design_mi_formulas` (`vcs_row`)
         ON DELETE CASCADE,
-    FOREIGN KEY(`market_input`)
-        REFERENCES `seddb`.`cvs_market_inputs`(`id`)
+    FOREIGN KEY (`design_group`)
+        REFERENCES `seddb`.`cvs_design_mi_formulas` (`design_group`)
+        ON DELETE CASCADE,
+    FOREIGN KEY (`external_factor`)
+        REFERENCES `seddb`.`cvs_market_inputs` (`id`)
         ON DELETE CASCADE
 );
 
 
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_value_drivers`
 (
-    `formulas`      INT UNSIGNED NOT NULL,
-    `value_driver`      INT UNSIGNED NOT NULL,
-    PRIMARY KEY(`formulas`, `value_driver`),
-    FOREIGN KEY (`formulas`)
-        REFERENCES `seddb`.`cvs_design_mi_formulas`(`vcs_row`)
+    `vcs_row`      INT UNSIGNED NOT NULL,
+    `design_group` INT UNSIGNED NOT NULL,
+    `value_driver` INT UNSIGNED NOT NULL,
+    `project`      INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`vcs_row`, `design_group`, `value_driver`),
+    FOREIGN KEY (`vcs_row`)
+        REFERENCES `seddb`.`cvs_design_mi_formulas` (`vcs_row`)
         ON DELETE CASCADE,
-    FOREIGN KEY(`value_driver`)
-        REFERENCES `seddb`.`cvs_value_drivers`(`id`)
+    FOREIGN KEY (`design_group`)
+        REFERENCES `seddb`.`cvs_design_mi_formulas` (`design_group`)
+        ON DELETE CASCADE,
+    FOREIGN KEY (`value_driver`)
+        REFERENCES `seddb`.`cvs_value_drivers` (`id`)
         ON DELETE CASCADE
 );
 

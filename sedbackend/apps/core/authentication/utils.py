@@ -40,6 +40,7 @@ async def verify_scopes(security_scopes: SecurityScopes, token: str = Depends(oa
         raise credentials_exception
 
     logger.debug(f"VERIFY SCOPE: Required scopes: {security_scopes.scopes}, user scopes: {token_data.scopes}")
+
     for scope in security_scopes.scopes:
         if scope not in token_data.scopes:
             logger.warning(f'VERIFY SCOPE: User "{token_data.username}" attempted to access an endpoint without the appropriate scope.')

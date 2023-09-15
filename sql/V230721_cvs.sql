@@ -34,9 +34,6 @@ ALTER TABLE `seddb`.`cvs_design_mi_formulas`
         REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE;
 
-DROP TABLE IF EXISTS `seddb`.`cvs_formulas_market_inputs`;
-DROP TABLE IF EXISTS `seddb`.`cvs_formulas_value_drivers`;
-
 
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_external_factors`
 (
@@ -54,7 +51,6 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_external_factors`
         REFERENCES `seddb`.`cvs_market_inputs` (`id`)
         ON DELETE CASCADE
 );
-
 
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_value_drivers`
 (

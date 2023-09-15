@@ -305,31 +305,3 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_market_input_values`
         REFERENCES `seddb`.`cvs_market_inputs`(`id`)
         ON DELETE CASCADE
 );
-
-CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_market_inputs`
-(
-    `formulas`      INT UNSIGNED NOT NULL,
-    `market_input`  INT UNSIGNED NOT NULL,
-    PRIMARY KEY(`formulas`, `market_input`),
-    FOREIGN KEY (`formulas`)
-        REFERENCES `seddb`.`cvs_design_mi_formulas`(`vcs_row`)
-        ON DELETE CASCADE,
-    FOREIGN KEY(`market_input`)
-        REFERENCES `seddb`.`cvs_market_inputs`(`id`)
-        ON DELETE CASCADE
-);
-
-
-CREATE TABLE IF NOT EXISTS `seddb`.`cvs_formulas_value_drivers`
-(
-    `formulas`      INT UNSIGNED NOT NULL,
-    `value_driver`      INT UNSIGNED NOT NULL,
-    PRIMARY KEY(`formulas`, `value_driver`),
-    FOREIGN KEY (`formulas`)
-        REFERENCES `seddb`.`cvs_design_mi_formulas`(`vcs_row`)
-        ON DELETE CASCADE,
-    FOREIGN KEY(`value_driver`)
-        REFERENCES `seddb`.`cvs_value_drivers`(`id`)
-        ON DELETE CASCADE
-);
-

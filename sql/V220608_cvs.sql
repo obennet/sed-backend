@@ -139,16 +139,22 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_value_dimensions`
     ON DELETE CASCADE
 );
 
-#Value drivers
+# Value driver to project relation
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_value_drivers`
 (
     `id`                INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `user`              INT UNSIGNED NOT NULL,
     `name`              TEXT NOT NULL,
     `unit`              VARCHAR(10) NULL,
+    `project`        INT UNSIGNED NOT NULL,
     FOREIGN KEY(`user`)
         REFERENCES  `seddb`.`users`(`id`)
+        ON DELETE CASCADE,
+    FOREIGN KEY(`project`)
+        REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE
+    CONSTRAINT unq_project_name_unit
+        UNIQUE (project, name(20), unit);
 );
 
 #Vcs row and value driver connection

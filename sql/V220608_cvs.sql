@@ -151,8 +151,8 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_value_drivers`
     FOREIGN KEY(`project`)
         REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE,
-    CONSTRAINT unq_project_name_unit
-    UNIQUE (project, name(20), unit);
+    CONSTRAINT unq_project_name_unit 
+        UNIQUE (project, name(20), unit)
 );
 
 #Vcs row and value driver connection

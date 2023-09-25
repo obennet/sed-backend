@@ -15,3 +15,4 @@ venv/
 
 # Mac files
 *.DS_Store
+build/

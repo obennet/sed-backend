@@ -1,6 +1,8 @@
 from typing import List, Tuple, Optional
 import random
 
+from fastapi.logger import logger
+
 from sedbackend.apps.core.files import implementation as impl_files
 import sedbackend.apps.cvs.simulation.implementation as sim_impl
 import sedbackend.apps.cvs.simulation.models as sim_model
@@ -16,7 +18,7 @@ import sedbackend.apps.cvs.project.implementation
 import sedbackend.apps.cvs.project.models
 import sedbackend.apps.cvs.vcs.implementation as vcs_impl
 import sedbackend.apps.cvs.vcs.models as vcs_model
-from sedbackend.apps.cvs.link_design_lifecycle.models import FormulaRowGet, TimeFormat, Rate
+from sedbackend.apps.cvs.link_design_lifecycle.models import TimeFormat, Rate
 from sedbackend.apps.cvs.market_input import models as market_input_model, implementation as market_input_impl
 import tests.testutils as tu
 
@@ -99,7 +101,7 @@ def random_value_driver_post(user_id: int, project_id: int, name: str = None, un
     if name is None:
         name = tu.random_str(5, 50)
     if unit is None:
-        unit = tu.random_str(0, 10)
+        unit = tu.random_str(1, 10)
 
     return sedbackend.apps.cvs.vcs.models.ValueDriverPost(
         name=name,

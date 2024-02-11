@@ -16,3 +16,7 @@ class CVSProjectNoMatchException(Exception):
 
 class SubProjectFailedDeletionException(Exception):
     pass
+
+
+class CVSProjectImageInvalidFormatException(Exception):
+    pass

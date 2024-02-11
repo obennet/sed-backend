@@ -7,6 +7,12 @@ from sedbackend.libs.datastructures.pagination import ListChunk
 from mysqlsb import MySQLStatementBuilder, Sort, FetchType
 import sedbackend.apps.core.projects.models as proj_models
 import sedbackend.apps.core.projects.storage as proj_storage
+from sedbackend.apps.core.files import (
+    models as file_models,
+    storage as file_storage,
+    exceptions as file_ex,
+)
+from sedbackend.apps.core.projects import storage as core_project_storage
 
 CVS_APPLICATION_SID = "MOD.CVS"
 CVS_PROJECT_TABLE = "cvs_projects"
@@ -36,7 +42,7 @@ def get_all_cvs_project(
 ) -> ListChunk[models.CVSProject]:
     logger.debug(f"Fetching all CVS projects for user with id={user_id}.")
 
-    # The issue is that cvs_project.id is not the same as 
+    # The issue is that cvs_project.id is not the same as
 
     query = f"SELECT DISTINCT p.*, COALESCE(pp.access_level, 4) AS my_access_right \
             FROM cvs_projects p \
@@ -136,6 +142,36 @@ def create_cvs_project(
     return get_cvs_project(db_connection, cvs_project_id, user_id, project, subproject)
 
 
+def upload_cvs_project_image(
+    db_connection: PooledMySQLConnection, cvs_project_id: int, image: str, user_id: int
+) -> models.CVSProject:
+    logger.debug(f"Uploading image for CVS project with id={cvs_project_id}.")
+
+    cvs_project = get_cvs_project(db_connection, cvs_project_id, user_id)
+
+    fs = image.read()
+    # if len(fs) > 5 * 1024 * 1024:
+    #    raise file_ex.FileSizeException
+
+    subproject = core_project_storage.db_get_subproject_native(
+        db_connection, "MOD.CVS", cvs_project_id
+    )
+    model_file = file_models.StoredFilePost.import_fastapi_file(
+        image, user_id, subproject.id
+    )
+    if model_file.extension not in [".png", ".jpg", ".jpeg", ".gif"]:
+        raise exceptions.CVSProjectImageInvalidFormatException
+
+    stored_file = file_storage.db_save_file(db_connection, model_file)
+
+    insert_statement = MySQLStatementBuilder(db_connection)
+    insert_statement.update(CVS_PROJECT_TABLE, "image_id = %s", [stored_file.id]).where(
+        "id = %s", [cvs_project_id]
+    ).execute(return_affected_rows=True)
+
+    return get_cvs_project(db_connection, cvs_project_id, user_id)
+
+
 def edit_cvs_project(
     db_connection: PooledMySQLConnection,
     cvs_project_id: int,
@@ -233,4 +269,11 @@ def populate_cvs_project(
         my_access_right=db_result["my_access_right"],
         project=project,
         subproject=subproject,
+        image=(
+            file_storage.db_get_file_path(
+                db_connection, db_result["image_id"], db_result["owner_id"]
+            ).path
+            if db_result["image_id"]
+            else None
+        ),
     )

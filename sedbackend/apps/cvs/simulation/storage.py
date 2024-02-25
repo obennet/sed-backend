@@ -771,3 +771,104 @@ def populate_sim_settings(db_result) -> models.SimSettings:
         monte_carlo=db_result["monte_carlo"],
         runs=db_result["runs"],
     )
+
+def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
+    simres = get_file_content(db_connection, user_id, file_id);
+
+    !pip install smt
+    # to reduce CPU time
+    !pip install numba
+
+    !pip install seaborn
+    from smt.surrogate_models import KRG
+    from sklearn.metrics import mean_squared_error, r2_score
+    from smt.utils.misc import compute_rms_error
+    import numpy as np
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+    from scipy.optimize import minimize
+    from smt.sampling_methods import LHS
+
+    excel_file_path = 'FOGV Project_sim_result(4).xlsx'
+    sheet_name = 'Simulation Values'
+
+    # Read the data from the Excel file
+    df1 = pd.read_excel(excel_file_path, sheet_name)
+
+    designs = df1.iloc[:, 2].tolist()
+
+    # Extract all values except the last two as 'vd' values
+    vd_values = df1.iloc[:, 3:-2].values.tolist()
+    spv_values = df1.iloc[:, -2].tolist()
+
+    formatted_data = {}
+
+    for design, vd, spv in zip(designs, vd_values, spv_values):
+        numeric_vd = [val for val in vd if pd.api.types.is_numeric_dtype(type(val))]
+        formatted_data[design] = {'vds': numeric_vd, 'spv': spv}
+
+    print("formatted_data:")
+    print(formatted_data)
+    print(len(formatted_data))
+    numeric_vd_headers = [header for header in df1.columns[3:-2] if df1[header].dtype in ['int64', 'float64']]
+
+    np.set_printoptions(precision=2, suppress=True, floatmode='fixed', linewidth=200)
+    design_points = []
+    spv_values = []
+
+    for design_name, design_data in formatted_data.items():
+        design_points.append(design_data['vds'])
+        spv_values.append(design_data['spv'])
+
+    design_points = np.array(design_points)
+    spv_values = np.array(spv_values)
+
+    X_train, X_test, y_train, y_test = train_test_split(design_points, spv_values, test_size=0.2, random_state=42)
+    kriging_model = KRG(print_prediction=False)
+    kriging_model.set_training_values(X_train, y_train)
+    kriging_model.train()
+
+    # Create design space
+    ndim = design_points.shape[1]
+    ndoe = int(10 * ndim)
+
+    # Construction of the DOE
+    vd_bounds = [(np.min(design_points[:, i]), np.max(design_points[:, i])) for i in range(design_points.shape[1])]
+    sampling = LHS(xlimits=np.array(vd_bounds), criterion='ese', random_state=1)
+    xt = sampling(ndoe)
+    yt = kriging_model.predict_values(xt)
+
+    # Combine sampled design points and actual data
+    combined_design_points = np.concatenate([xt, X_train])
+    combined_spv_values = np.concatenate([yt.flatten(), y_train])
+
+    # Train new kriging model on the combined dataset
+    kriging_model_combined = KRG(print_prediction=False)
+    kriging_model_combined.set_training_values(combined_design_points, combined_spv_values)
+    kriging_model_combined.train()
+
+    def objective_function(vd_values):
+        predicted_spv = kriging_model_combined.predict_values(np.array([vd_values]))[0][0]
+        return -predicted_spv
+
+    optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
+    init_guess = np.mean(combined_design_points, axis=0)
+    result = minimize(objective_function, x0=init_guess, bounds=optimize_bounds, method='Nelder-Mead', tol=1e-4)
+
+    optimal_vd_values = result.x
+    predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
+    print("Optimal 'vd' values for maximizing SPV:", optimal_vd_values)
+    print("Predicted 'spv' value:", predicted_spv)
+
+    # Error measurements
+    ntest = 20
+    xtest = sampling(ntest)
+    ytest = kriging_model_combined.predict_values(xtest)
+
+    spv_values_test_predicted = kriging_model_combined.predict_values(X_test)
+    mse_existing = mean_squared_error(y_test, spv_values_test_predicted.flatten())
+    r_squared_existing = r2_score(y_test, spv_values_test_predicted.flatten())
+
+    print("RMS error", str(compute_rms_error(kriging_model_combined, combined_design_points, combined_spv_values)))
+    print("Mean Squared Error (MSE) for validation points:", mse_existing)
+    print("R-squared for validation points:", r_squared_existing)

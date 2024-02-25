@@ -324,3 +324,16 @@ def edit_sim_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not update simulation settings",
         )
+
+def get_surrogate_model(user_id: int, file_id) -> SimulationResult:
+    try:
+        with get_connection() as con:
+            result = storage.get_surrogate_model(con, user_id, file_id)
+            con.commit()
+            return result
+    except Exception as e:
+        logger.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not get surrogate model for simulation",
+        )

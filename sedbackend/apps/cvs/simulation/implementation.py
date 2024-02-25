@@ -325,7 +325,8 @@ def edit_sim_settings(
             detail=f"Could not update simulation settings",
         )
 
-def get_surrogate_model(user_id: int, file_id) -> models.Design:
+
+def get_surrogate_model(user_id: int, file_id: int):
     try:
         with get_connection() as con:
             result = storage.get_surrogate_model(con, user_id, file_id)

@@ -19,6 +19,8 @@ from desim.data import NonTechCost, TimeFormat
 from desim.simulation import Process
 
 from typing import List
+
+from sedbackend.apps.cvs.design.models import DesignPut, Design
 from sedbackend.apps.cvs.design.storage import get_all_designs
 
 from mysqlsb import FetchType, MySQLStatementBuilder,Sort
@@ -774,7 +776,6 @@ def populate_sim_settings(db_result) -> models.SimSettings:
 
 
 # Should be moved to another repo probably
-"""
 from smt.surrogate_models import KRG
 from sklearn.metrics import mean_squared_error, r2_score
 from smt.utils.misc import compute_rms_error
@@ -783,37 +784,37 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from scipy.optimize import minimize
 from smt.sampling_methods import LHS
-"""
 
-def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id) -> models.Design:
+
+def is_numeric(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     simres = get_file_content(db_connection, user_id, file_id)
-    logger.debug(f"get_surrogate_model")
-    logger.debug(simres)
-    """
-    excel_file_path = 'FOGV Project_sim_result(4).xlsx'
-    sheet_name = 'Simulation Values'
-
-    # Read the data from the Excel file
-    df1 = pd.read_excel(excel_file_path, sheet_name)
-
-    designs = df1.iloc[:, 2].tolist()
-
-    # Extract all values except the last two as 'vd' values
-    vd_values = df1.iloc[:, 3:-2].values.tolist()
-    spv_values = df1.iloc[:, -2].tolist()
-
+    designs = []
+    vd_values = []
+    for design in simres.designs:
+        values = [vd_value.value for vd_value in design.vd_design_values]
+        vd_values.append(values)
+        designs.append(design.name)
+    spv_values = [run.surplus_value_end_result for run in simres.runs]
     formatted_data = {}
-
     for design, vd, spv in zip(designs, vd_values, spv_values):
-        numeric_vd = [val for val in vd if pd.api.types.is_numeric_dtype(type(val))]
-        formatted_data[design] = {'vds': numeric_vd, 'spv': spv}
+        # Filter out non-numeric values from each sublist
+        numeric_vds = [float(val) for val in vd if is_numeric(val)]
+        formatted_data[design] = {'vds': numeric_vds, 'spv': spv}
 
-    print("formatted_data:")
-    print(formatted_data)
-    print(len(formatted_data))
-    numeric_vd_headers = [header for header in df1.columns[3:-2] if df1[header].dtype in ['int64', 'float64']]
+    logger.debug("formatted_data:")
+    logger.debug(formatted_data)
+    #print(len(formatted_data))
+    #numeric_vd_headers = [header for header in df1.columns[3:-2] if df1[header].dtype in ['int64', 'float64']]
 
-    np.set_printoptions(precision=2, suppress=True, floatmode='fixed', linewidth=200)
+    #np.set_printoptions(precision=2, suppress=True, floatmode='fixed', linewidth=200)
     design_points = []
     spv_values = []
 
@@ -848,9 +849,9 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id) 
     kriging_model_combined.set_training_values(combined_design_points, combined_spv_values)
     kriging_model_combined.train()
 
-    def objective_function(vd_values):
-        predicted_spv = kriging_model_combined.predict_values(np.array([vd_values]))[0][0]
-        return -predicted_spv
+    def objective_function(_vd_values):
+        _predicted_spv = kriging_model_combined.predict_values(np.array([_vd_values]))[0][0]
+        return -_predicted_spv
 
     optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
     init_guess = np.mean(combined_design_points, axis=0)
@@ -858,7 +859,13 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id) 
 
     optimal_vd_values = result.x
     predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
-    print("Optimal 'vd' values for maximizing SPV:", optimal_vd_values)
+    logger.debug("ASDASDASD")
+    logger.debug(result.x)
+    logger.debug("Optimal 'vd' values for maximizing SPV:", optimal_vd_values)
+    logger.debug("Predicted spv: ", predicted_spv)
+
+
+    """
     print("Predicted 'spv' value:", predicted_spv)
 
     # Error measurements
@@ -873,6 +880,5 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id) 
     print("RMS error", str(compute_rms_error(kriging_model_combined, combined_design_points, combined_spv_values)))
     print("Mean Squared Error (MSE) for validation points:", mse_existing)
     print("R-squared for validation points:", r_squared_existing)
-    
     """
 

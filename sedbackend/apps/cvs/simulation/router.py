@@ -114,3 +114,12 @@ async def get_simulation_file_content(native_project_id,file_id: int, user: User
 )
 async def get_simulation_file_content(native_project_id,file_id: int, user: User = Depends(get_current_active_user)) -> bool:
     return implementation.remove_simulation_file(native_project_id, user.id, file_id)
+
+@router.get(
+   '/project/{native_project_id}/simulation/surrogate',
+    summary='Get surrogate model for simulation',
+    response_model=models.Design,
+    dependencies=[Depends(SubProjectAccessChecker(AccessLevel.list_can_read(), CVS_APP_SID))]
+)
+async def get_surrogate_model(file_id: int, user: User = Depends(get_current_active_user)) -> models.Design:
+    return implementation.get_surrogate_model(user.id, file_id)

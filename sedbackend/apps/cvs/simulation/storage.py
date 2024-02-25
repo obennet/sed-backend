@@ -859,12 +859,10 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
 
     optimal_vd_values = result.x
     predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
-    logger.debug("ASDASDASD")
     logger.debug(result.x)
-    logger.debug("Optimal 'vd' values for maximizing SPV:", optimal_vd_values)
-    logger.debug("Predicted spv: ", predicted_spv)
+    logger.debug(predicted_spv)
 
-
+    Design()
     """
     print("Predicted 'spv' value:", predicted_spv)
 

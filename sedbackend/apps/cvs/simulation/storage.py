@@ -772,23 +772,24 @@ def populate_sim_settings(db_result) -> models.SimSettings:
         runs=db_result["runs"],
     )
 
-def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
-    simres = get_file_content(db_connection, user_id, file_id);
 
-    !pip install smt
-    # to reduce CPU time
-    !pip install numba
+# Should be moved to another repo probably
+"""
+from smt.surrogate_models import KRG
+from sklearn.metrics import mean_squared_error, r2_score
+from smt.utils.misc import compute_rms_error
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from scipy.optimize import minimize
+from smt.sampling_methods import LHS
+"""
 
-    !pip install seaborn
-    from smt.surrogate_models import KRG
-    from sklearn.metrics import mean_squared_error, r2_score
-    from smt.utils.misc import compute_rms_error
-    import numpy as np
-    import pandas as pd
-    from sklearn.model_selection import train_test_split
-    from scipy.optimize import minimize
-    from smt.sampling_methods import LHS
-
+def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id) -> models.Design:
+    simres = get_file_content(db_connection, user_id, file_id)
+    logger.debug(f"get_surrogate_model")
+    logger.debug(simres)
+    """
     excel_file_path = 'FOGV Project_sim_result(4).xlsx'
     sheet_name = 'Simulation Values'
 
@@ -872,3 +873,6 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     print("RMS error", str(compute_rms_error(kriging_model_combined, combined_design_points, combined_spv_values)))
     print("Mean Squared Error (MSE) for validation points:", mse_existing)
     print("R-squared for validation points:", r_squared_existing)
+    
+    """
+

@@ -16,3 +16,4 @@ python-magic==0.4.27
 pytest==7.3.1
 httpx==0.24.0
 plusminus==0.7.0
+smt

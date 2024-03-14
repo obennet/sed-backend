@@ -582,17 +582,25 @@ def edit_simulation_settings(
         for vcs in vcss:
             rows = vcs_storage.get_vcs_table(db_connection, project_id, vcs.id)
             for row in rows:
+                logger.debug(
+                    f"Row: {('iso' + row.iso_process.name) if row.iso_process else ('sub' + row.subprocess.name)}"
+                )
                 if (
                     row.iso_process is not None
                     and row.iso_process.name == sim_settings.flow_process
                 ) or (
                     row.subprocess is not None
-                    and row.subprocess.name == sim_settings.flow_process
+                    and (
+                        f"{row.subprocess.name} ({row.subprocess.parent_process.name})"
+                        == sim_settings.flow_process
+                        or row.subprocess.name == sim_settings.flow_process
+                    )
                 ):
                     flow_process_exists = True
                     break
 
         if not flow_process_exists:
+            logger.debug(f"Flow process {sim_settings.flow_process} not found")
             raise e.FlowProcessNotFoundException
 
     if count == 1:

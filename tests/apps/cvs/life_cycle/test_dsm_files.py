@@ -11,7 +11,7 @@ std_rows = [tu.vcs_model.VcsRowPost(
     stakeholder=tu.tu.random_str(5, 50),
     stakeholder_needs=None,
     stakeholder_expectations=tu.tu.random_str(5, 50),
-    iso_process=17,
+    iso_process=18,
     subprocess=None
 ), tu.vcs_model.VcsRowPost(
     index=1,
@@ -104,7 +104,7 @@ def test_upload_invalid_dsm_file(client, std_headers, std_user):
         stakeholder=tu.tu.random_str(5, 50),
         stakeholder_needs=None,
         stakeholder_expectations=tu.tu.random_str(5, 50),
-        iso_process=17,
+        iso_process=18,
         subprocess=None
     )
     row2 = tu.vcs_model.VcsRowPost(
@@ -208,9 +208,9 @@ def test_save_dsm(client, std_headers, std_user):
     rows = [std_rows[0], std_rows[1]]
     tu.create_vcs_table(project.id, vcs.id, rows)
 
-    dsm = [["Processes", "Start", "Architectural design", "Verification", "End"],
+    dsm = [["Processes", "Start", "Implementation", "Verification", "End"],
            ["Start", "X", "1", "0", "0"],
-           ["Architectural design", "0", "X", "1", "0"],
+           ["Implementation", "0", "X", "1", "0"],
            ["Verification", "0", "0", "X", "1"],
            ["End", "0", "0", "0", "X"]]
 
@@ -244,9 +244,9 @@ def test_apply_dsm_to_all(client, std_headers, std_user):
     tu.create_vcs_table(project.id, vcss[1].id, rows)
     tu.create_vcs_table(project.id, vcss[2].id, rows_alt)
 
-    dsm = [["Processes", "Start", "Architectural design", "Verification", "End"],
+    dsm = [["Processes", "Start", "Implementation", "Verification", "End"],
            ["Start", "X", "1", "0", "0"],
-           ["Architectural design", "0", "X", "1", "0"],
+           ["Implementation", "0", "X", "1", "0"],
            ["Verification", "0", "0", "X", "1"],
            ["End", "0", "0", "0", "X"]]
 

@@ -54,7 +54,7 @@ def test_get_subprocess_not_found(client, std_headers, std_user):
     project = tu.seed_random_project(current_user.id)
     tu.seed_random_subprocesses(project.id, 1)
     # Act
-    res = client.get(f'/api/cvs/project/{project.id}/subprocess/999', headers=std_headers)
+    res = client.get(f'/api/cvs/project/{project.id}/subprocess/99999999', headers=std_headers)
     # Assert
     assert res.status_code == 404  # 404 Not Found
     # Cleanup

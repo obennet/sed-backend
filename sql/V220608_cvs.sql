@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vcss`
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_iso_processes`
 (
     `id`            INT UNSIGNED NOT NULL PRIMARY KEY,
-    `name`          VARCHAR(255) NOT NULL,
+    `project`       INT UNSIGNED NOT NULL AFTER `id`,
+    `name`          VARCHAR(64),
     `category`      TEXT NOT NULL   
 );
 
@@ -250,7 +251,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vd_design_values`
 (
     `value_driver`      INT UNSIGNED NOT NULL,
     `design`            INT UNSIGNED NOT NULL,
-    `value`             FLOAT NOT NULL,
+    `value`             CHAR(255),
     PRIMARY KEY(`value_driver`, `design`),
     FOREIGN KEY(`value_driver`)
         REFERENCES `seddb`.`cvs_value_drivers`(`id`)
@@ -263,12 +264,19 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vd_design_values`
 
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_design_mi_formulas`
 (
+    `project`           INT UNSIGNED NOT NULL,
     `vcs_row`           INT UNSIGNED NOT NULL,
     `design_group`      INT UNSIGNED NOT NULL,
     `time`              TEXT,
+    `time_latex`        TEXT NULL,
+    `time_comment`      TEXT NULL,
     `time_unit`         VARCHAR(10),
     `cost`              TEXT,
+    `cost_latex`        TEXT NULL,
+    `cost_comment`      TEXT NULL,
     `revenue`           TEXT,
+    `revenue_latex`     TEXT NULL,
+    `revenue_comment`   TEXT NULL,
     `rate`              TEXT,
     PRIMARY KEY (`vcs_row`, `design_group`),
     FOREIGN KEY(`vcs_row`)
@@ -276,6 +284,9 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_design_mi_formulas`
         ON DELETE CASCADE,
     FOREIGN KEY (`design_group`)
         REFERENCES `seddb`.`cvs_design_groups`(`id`)
+        ON DELETE CASCADE,
+    FOREIGN KEY (`project`)
+        REFERENCES `seddb`.`cvs_projects` (`id`)
         ON DELETE CASCADE,
     CONSTRAINT `check_unit` CHECK (`time_unit` IN ('MINUTES', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR')),
     CONSTRAINT `check_rate` CHECK (`rate` IN ('per_product', 'per_project'))

@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vcss`
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_iso_processes`
 (
     `id`            INT UNSIGNED NOT NULL PRIMARY KEY,
-    `project`       INT UNSIGNED NOT NULL AFTER `id`,
+    `project`       INT UNSIGNED NOT NULL,
     `name`          VARCHAR(64),
     `category`      TEXT NOT NULL   
 );
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_subprocesses`
     `iso_process`   INT UNSIGNED NOT NULL,
     FOREIGN KEY (`iso_process`)
         REFERENCES `seddb`.`cvs_iso_processes`(`id`)
-	    ON DELETE CASCADE,
+	    ON DELETE CASCADE
 );
 
 #The rows of the vcs table

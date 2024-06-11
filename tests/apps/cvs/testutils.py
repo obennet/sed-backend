@@ -145,14 +145,10 @@ def random_table_row(
     if index is None:
         index = random.randint(1, 15)
 
-    if random.randint(1, 8) == 2:
-        subprocess = random_subprocess(project_id)
-        subprocess_id = subprocess.id
+    if random.randint(1, 5) == 1:  # Give 1/5 chance to produce non-tech process
+        iso_process_id = random.randint(1, 14)
     else:
-        if random.randint(1, 5) == 1:  # Give 1/5 chance to produce non-tech process
-            iso_process_id = random.randint(1, 14)
-        else:
-            iso_process_id = random.randint(15, 25)
+        iso_process_id = random.randint(15, 25)
 
     if stakeholder is None:
         stakeholder = tu.random_str(5, 50)

@@ -73,12 +73,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_subprocesses`
     `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `project`       INT UNSIGNED NOT NULL,
     `name`          VARCHAR(64),
-    `iso_process`   INT UNSIGNED NOT NULL,
-    CONSTRAINT `subprocess_iso_process`
-        FOREIGN KEY (`iso_process`)
-            REFERENCES `seddb`.`cvs_iso_processes`(`id`)
-            ON DELETE CASCADE
-            ON UPDATE NO ACTION
+    `iso_process`   INT UNSIGNED NOT NULL
 );
 
 #The rows of the vcs table
@@ -91,16 +86,6 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_vcs_rows`
     `stakeholder_expectations`  TEXT NOT NULL,
     `iso_process`               INT UNSIGNED NULL,
     `subprocess`                INT UNSIGNED NULL,
-    CONSTRAINT `row_iso_process`
-        FOREIGN KEY (`iso_process`) 
-        REFERENCES `seddb`.`cvs_iso_processes`(`id`)
-	    ON DELETE CASCADE
-	    ON UPDATE NO ACTION,
-    CONSTRAINT `row_subprocess`
-        FOREIGN KEY (`subprocess`) 
-        REFERENCES `seddb`.`cvs_subprocesses`(`id`)
-	    ON DELETE CASCADE
-	    ON UPDATE NO ACTION,
     CONSTRAINT `row_vcs`
         FOREIGN KEY(`vcs`)
         REFERENCES  `seddb`.`cvs_vcss`(`id`)

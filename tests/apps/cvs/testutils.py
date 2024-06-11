@@ -183,7 +183,7 @@ def random_subprocess(project_id: int, name: str = None, parent_process_id: int 
 
     subprocess = vcs_model.VCSSubprocessPost(
         name=name,
-        parent_process_id=parent_process_id
+        parent_process_id=parent_process_id or 1
     )
     subp = vcs_impl.create_subprocess(project_id, subprocess)
     return subp

@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_subprocesses`
     FOREIGN KEY (`iso_process`)
         REFERENCES `seddb`.`cvs_iso_processes`(`id`)
 	    ON DELETE CASCADE
+        ON UPDATE NO ACTION
 );
 
 #The rows of the vcs table

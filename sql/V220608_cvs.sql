@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS `seddb`.`cvs_iso_processes`
 CREATE TABLE IF NOT EXISTS `seddb`.`cvs_subprocesses`
 (
     `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `vcs`           INT UNSIGNED NULL,
     `name`          TEXT NOT NULL,
     `iso_process`   INT UNSIGNED NOT NULL,
     FOREIGN KEY (`iso_process`)

@@ -11,6 +11,23 @@ from sedbackend.apps.cvs.market_input import (
     models as market_input_model,
 )
 
+def test_iso_processes_exist(client, std_headers, std_user):
+    # Setup
+    current_user = impl_users.impl_get_user_with_username(std_user.username)
+    project = tu.seed_random_project(current_user.id)
+
+    # Act
+    res = client.get(
+        f"/api/cvs/vcs/iso-processes/all", headers=std_headers
+    )
+
+    # Assert
+    assert res.status_code == 200
+    assert len(res.json()) == 30
+
+    # Cleanup
+    tu.delete_project_by_id(project.id, current_user.id)
+
 
 def test_create_formulas(client, std_headers, std_user):
     # Setup

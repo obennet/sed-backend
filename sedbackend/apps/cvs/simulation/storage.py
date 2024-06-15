@@ -20,7 +20,7 @@ from desim.simulation import Process
 
 from typing import List
 
-from sedbackend.apps.cvs.design.models import DesignPut, Design
+from sedbackend.apps.cvs.design.models import DesignPut, Design, ValueDriverDesignValue
 from sedbackend.apps.cvs.design.storage import get_all_designs
 
 from mysqlsb import FetchType, MySQLStatementBuilder, Sort
@@ -875,23 +875,53 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     simres = get_file_content(db_connection, user_id, file_id)
     designs = []
     vd_values = []
+    non_numeric_values = {}
+
+    # Collect vd_values and design names
     for design in simres.designs:
         values = [vd_value.value for vd_value in design.vd_design_values]
-        vd_values.append(values)
+        for vd_value in design.vd_design_values:
+            if not is_numeric(vd_value.value):
+                if vd_value.vd_id not in non_numeric_values:
+                    non_numeric_values[vd_value.vd_id] = []
+                if vd_value.value not in non_numeric_values[vd_value.vd_id]:
+                    non_numeric_values[vd_value.vd_id].append(vd_value.value)
+        vd_values.append([(vd_value.vd_id, vd_value.value) for vd_value in design.vd_design_values])
         designs.append(design.name)
+
     spv_values = [run.surplus_value_end_result for run in simres.runs]
+
+    # Create mapping dictionaries
+    vd_mapping_dict = {vd_id: {val: idx for idx, val in enumerate(values)} for vd_id, values in
+                       non_numeric_values.items()}
+    reverse_vd_mapping_dict = {vd_id: {idx: val for val, idx in values.items()} for vd_id, values in
+                               vd_mapping_dict.items()}
+    logger.debug("vd_values")
+    logger.debug(vd_values)
+
+    # Translate vd_values using the mapping dictionaries
+    def translate_values(vd_list, mapping_dict):
+        translated_list = []
+        for vd_id, val in vd_list:
+            if vd_id in mapping_dict and val in mapping_dict[vd_id]:
+                translated_list.append(mapping_dict[vd_id][val])
+            else:
+                translated_list.append(float(val))
+        return translated_list
+
+    # Apply the translation to create the updated vd_values
+    translated_vd_values = [translate_values(vd_list, vd_mapping_dict) for vd_list in vd_values]
+
     formatted_data = {}
-    for design, vd, spv in zip(designs, vd_values, spv_values):
-        # Filter out non-numeric values from each sublist
-        numeric_vds = [float(val) for val in vd if is_numeric(val)]
-        formatted_data[design] = {'vds': numeric_vds, 'spv': spv}
+    for design, vd, spv in zip(designs, translated_vd_values, spv_values):
+        formatted_data[design] = {'vds': vd, 'spv': spv}
 
     logger.debug("formatted_data:")
     logger.debug(formatted_data)
-    #print(len(formatted_data))
-    #numeric_vd_headers = [header for header in df1.columns[3:-2] if df1[header].dtype in ['int64', 'float64']]
 
-    #np.set_printoptions(precision=2, suppress=True, floatmode='fixed', linewidth=200)
+    logger.debug("VD_MAPPING_DICT:")
+    logger.debug(vd_mapping_dict)
+
     design_points = []
     spv_values = []
 
@@ -936,24 +966,27 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
 
     optimal_vd_values = result.x
     predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
-    logger.debug(result.x)
+
+    def translate_back(result, reverse_mapping_dict):
+        translated_back = []
+        for i, val in enumerate(result):
+            # Check if it's an index that needs to be translated back
+            for vd_id, mapping in reverse_mapping_dict.items():
+                if val in mapping:
+                    translated_back.append(mapping[val])
+                    break
+            else:
+                # If no mapping found, keep the numeric value
+                translated_back.append(val)
+        return translated_back
+
+    # Translate back the result
+    translated_result = translate_back(result.x, reverse_vd_mapping_dict)
+
+    # Print the translated result
+    logger.debug(translated_result)
     logger.debug(predicted_spv)
 
-    Design()
-    """
-    print("Predicted 'spv' value:", predicted_spv)
+    return [ValueDriverDesignValue(vd_id=vd.id, value=translated_result[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
 
-    # Error measurements
-    ntest = 20
-    xtest = sampling(ntest)
-    ytest = kriging_model_combined.predict_values(xtest)
-
-    spv_values_test_predicted = kriging_model_combined.predict_values(X_test)
-    mse_existing = mean_squared_error(y_test, spv_values_test_predicted.flatten())
-    r_squared_existing = r2_score(y_test, spv_values_test_predicted.flatten())
-
-    print("RMS error", str(compute_rms_error(kriging_model_combined, combined_design_points, combined_spv_values)))
-    print("Mean Squared Error (MSE) for validation points:", mse_existing)
-    print("R-squared for validation points:", r_squared_existing)
-    """
 

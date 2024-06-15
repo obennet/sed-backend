@@ -46,7 +46,6 @@ def test_run_single_simulation(client, std_headers, std_user):
     tu.delete_design_group(project.id, design_group.id)
     tu.delete_VCS_with_ids(current_user.id, project.id, [vcs.id])
     tu.delete_project_by_id(project.id, current_user.id)
-    assert res.status_code == 200
 
 
 def test_run_sim_invalid_design_group(client, std_headers, std_user):

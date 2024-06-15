@@ -1,5 +1,5 @@
-Processes,Start,Architectural design,Verification,End
+Processes,Start,Implementation,Verification,End
 Start,X,1,0,0
-Architectural design,0,X,1,0
+Implementation,0,X,1,0
 Verification,0,0,X,1
 End,0,0,0,X

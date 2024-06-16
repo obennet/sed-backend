@@ -19,6 +19,8 @@ from desim.data import NonTechCost, TimeFormat
 from desim.simulation import Process
 
 from typing import List
+
+from sedbackend.apps.cvs.design.models import DesignPut, Design, ValueDriverDesignValue
 from sedbackend.apps.cvs.design.storage import get_all_designs
 
 from mysqlsb import FetchType, MySQLStatementBuilder, Sort
@@ -848,3 +850,162 @@ def populate_sim_settings(db_result) -> models.SimSettings:
         monte_carlo=db_result["monte_carlo"],
         runs=db_result["runs"],
     )
+
+
+# Should be moved to another repo probably
+from smt.surrogate_models import KRG
+from sklearn.metrics import mean_squared_error, r2_score
+from smt.utils.misc import compute_rms_error
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from scipy.optimize import minimize
+from smt.sampling_methods import LHS
+
+
+def is_numeric(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
+    simres = get_file_content(db_connection, user_id, file_id)
+    designs = []
+    vd_values = []
+    non_numeric_values = {}
+    unique_vd_ids = set();
+
+    # Collect vd_values and design names
+    for design in simres.designs:
+        for vd_value in design.vd_design_values:
+            unique_vd_ids.add(vd_value.vd_id)
+            if not is_numeric(vd_value.value):
+                if vd_value.vd_id not in non_numeric_values:
+                    non_numeric_values[vd_value.vd_id] = []
+                if vd_value.value not in non_numeric_values[vd_value.vd_id]:
+                    non_numeric_values[vd_value.vd_id].append(vd_value.value)
+        vd_values.append([(vd_value.vd_id, vd_value.value) for vd_value in design.vd_design_values])
+        designs.append(design.name)
+
+    spv_values = [run.surplus_value_end_result for run in simres.runs]
+
+    vd_mapping_dict = {vd_id: {val: idx for idx, val in enumerate(values)} for vd_id, values in
+                       non_numeric_values.items()}
+    reverse_vd_mapping_dict = {vd_id: {idx: val for val, idx in values.items()} for vd_id, values in
+                               vd_mapping_dict.items()}
+    logger.debug("vd_values")
+    logger.debug(vd_values)
+    logger.debug("vd ids")
+    logger.debug(unique_vd_ids)
+    def translate_values(vd_list, mapping_dict):
+        translated_list = []
+        for vd_id, val in vd_list:
+            if vd_id in mapping_dict and val in mapping_dict[vd_id]:
+                translated_list.append(mapping_dict[vd_id][val])
+            else:
+                translated_list.append(float(val))
+        return translated_list
+
+    translated_vd_values = [translate_values(vd_list, vd_mapping_dict) for vd_list in vd_values]
+
+    formatted_data = {}
+    for design, vd, spv in zip(designs, translated_vd_values, spv_values):
+        formatted_data[design] = {'vds': vd, 'spv': spv}
+
+    logger.debug("formatted_data:")
+    logger.debug(formatted_data)
+
+    logger.debug("VD_MAPPING_DICT:")
+    logger.debug(vd_mapping_dict)
+    logger.debug(reverse_vd_mapping_dict)
+
+    design_points = []
+    spv_values = []
+
+    for design_name, design_data in formatted_data.items():
+        design_points.append(design_data['vds'])
+        spv_values.append(design_data['spv'])
+
+    # This part almost exactly like jupyter notebook model part relies on the data format being the same as
+    # the jupyter notebook
+    design_points = np.array(design_points)
+    spv_values = np.array(spv_values)
+
+    X_train, X_test, y_train, y_test = train_test_split(design_points, spv_values, test_size=0.2, random_state=42)
+    kriging_model = KRG(print_prediction=False)
+    kriging_model.set_training_values(X_train, y_train)
+    kriging_model.train()
+
+    # Create design space
+    ndim = design_points.shape[1]
+    ndoe = int(10 * ndim)
+
+    # Construction of the DOE
+    vd_bounds = [(np.min(design_points[:, i]), np.max(design_points[:, i])) for i in range(design_points.shape[1])]
+    sampling = LHS(xlimits=np.array(vd_bounds), criterion='ese', random_state=1)
+    xt = sampling(ndoe)
+    yt = kriging_model.predict_values(xt)
+
+    # Combine sampled design points and actual data
+    combined_design_points = np.concatenate([xt, X_train])
+    combined_spv_values = np.concatenate([yt.flatten(), y_train])
+
+    # Train new kriging model on the combined dataset
+    kriging_model_combined = KRG(print_prediction=False)
+    kriging_model_combined.set_training_values(combined_design_points, combined_spv_values)
+    kriging_model_combined.train()
+
+    def objective_function(_vd_values):
+        _predicted_spv = kriging_model_combined.predict_values(np.array([_vd_values]))[0][0]
+        return -_predicted_spv
+
+    #optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
+
+
+    #logger.debug("COMBINED DESIGN POINTS")
+    #logger.debug(combined_design_points)
+
+    default_upper_bound = np.inf
+    optimize_bounds = []
+
+    # Iterate over each index in the combined_design_points shape
+    for i, vd in enumerate(simres.designs[0].vd_design_values):
+        if vd.vd_id in vd_mapping_dict:
+            # Use custom bounds if specified in VD_MAPPING_DICT
+            bounds = (0, len(vd_mapping_dict[vd.vd_id]) - 1)  # Assuming indices are 0, 1, 2, ...
+            optimize_bounds.append(bounds)
+        else:
+            # Use default bounds otherwise
+            optimize_bounds.append((np.min(combined_design_points[:, i]), default_upper_bound))
+
+    logger.debug("OPTIMZE BOUNDS")
+    logger.debug(optimize_bounds)
+
+    init_guess = np.mean(combined_design_points, axis=0)
+    result = minimize(objective_function, x0=init_guess, bounds=optimize_bounds, method='Nelder-Mead', tol=1e-4)
+
+    optimal_vd_values = result.x
+    logger.debug("OPTIMAL VD VALUES")
+    logger.debug(optimal_vd_values)
+
+    logger.debug(simres.designs[0].vd_design_values)
+    translated_optimal_vd_values = []
+    for i, vd in enumerate(simres.designs[0].vd_design_values):
+        logger.debug(vd)
+        if vd.vd_id in non_numeric_values:
+            translated_optimal_vd_values.append(reverse_vd_mapping_dict[vd.vd_id][int(round(optimal_vd_values[i]))])
+        else:
+            translated_optimal_vd_values.append(optimal_vd_values[i])
+
+    predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
+
+    # Print the translated result
+    logger.debug(translated_optimal_vd_values)
+    logger.debug(predicted_spv)
+
+    return [ValueDriverDesignValue(vd_id=vd.vd_id, value=translated_optimal_vd_values[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
+
+

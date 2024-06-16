@@ -3,6 +3,7 @@ from typing import List, Optional
 from sedbackend.apps.core.authentication.utils import get_current_active_user
 from sedbackend.apps.core.projects.dependencies import SubProjectAccessChecker
 from sedbackend.apps.core.projects.models import AccessLevel
+from sedbackend.apps.cvs.design.models import ValueDriverDesignValue
 from sedbackend.apps.cvs.project.router import CVS_APP_SID
 from sedbackend.apps.core.users.models import User
 from sedbackend.apps.cvs.simulation import implementation, models
@@ -114,3 +115,11 @@ async def get_simulation_file_content(native_project_id,file_id: int, user: User
 )
 async def get_simulation_file_content(native_project_id,file_id: int, user: User = Depends(get_current_active_user)) -> bool:
     return implementation.remove_simulation_file(native_project_id, user.id, file_id)
+
+@router.get(
+   '/project/{native_project_id}/simulation/surrogate',
+    summary='Get surrogate model for simulation',
+    dependencies=[Depends(SubProjectAccessChecker(AccessLevel.list_can_read(), CVS_APP_SID))]
+)
+async def get_surrogate_model(file_id: int, user: User = Depends(get_current_active_user)) -> models.List[ValueDriverDesignValue]:
+    return implementation.get_surrogate_model(user.id, file_id)

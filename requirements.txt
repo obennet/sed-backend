@@ -3,6 +3,7 @@ desim-tool==0.4.8
 fastapi==0.95.1
 mvmlib==0.5.9
 mysql-connector-python==8.0.33
+numpy==1.26.4
 pandas==2.0.0
 passlib==1.7.4
 pyparsing==3.0.9

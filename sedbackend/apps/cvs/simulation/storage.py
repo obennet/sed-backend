@@ -876,11 +876,12 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     designs = []
     vd_values = []
     non_numeric_values = {}
+    unique_vd_ids = set();
 
     # Collect vd_values and design names
     for design in simres.designs:
-        values = [vd_value.value for vd_value in design.vd_design_values]
         for vd_value in design.vd_design_values:
+            unique_vd_ids.add(vd_value.vd_id)
             if not is_numeric(vd_value.value):
                 if vd_value.vd_id not in non_numeric_values:
                     non_numeric_values[vd_value.vd_id] = []
@@ -897,7 +898,8 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
                                vd_mapping_dict.items()}
     logger.debug("vd_values")
     logger.debug(vd_values)
-
+    logger.debug("vd ids")
+    logger.debug(unique_vd_ids)
     def translate_values(vd_list, mapping_dict):
         translated_list = []
         for vd_id, val in vd_list:
@@ -918,6 +920,7 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
 
     logger.debug("VD_MAPPING_DICT:")
     logger.debug(vd_mapping_dict)
+    logger.debug(reverse_vd_mapping_dict)
 
     design_points = []
     spv_values = []
@@ -961,32 +964,48 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
 
     #optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
 
-    optimize_bounds = [(np.min(combined_design_points[:, i]),
-                        np.max(combined_design_points[:, i])) if vd_id not in vd_mapping_dict.keys()
-                       else (min(vd_mapping_dict[vd_id].values()), max(vd_mapping_dict[vd_id].values())) for i, vd_id in
-                       enumerate(vd_mapping_dict.keys())]
+
+    #logger.debug("COMBINED DESIGN POINTS")
+    #logger.debug(combined_design_points)
+
+    default_upper_bound = np.inf
+    optimize_bounds = []
+
+    # Iterate over each index in the combined_design_points shape
+    for i, vd in enumerate(simres.designs[0].vd_design_values):
+        if vd.vd_id in vd_mapping_dict:
+            # Use custom bounds if specified in VD_MAPPING_DICT
+            bounds = (0, len(vd_mapping_dict[vd.vd_id]) - 1)  # Assuming indices are 0, 1, 2, ...
+            optimize_bounds.append(bounds)
+        else:
+            # Use default bounds otherwise
+            optimize_bounds.append((np.min(combined_design_points[:, i]), default_upper_bound))
+
+    logger.debug("OPTIMZE BOUNDS")
+    logger.debug(optimize_bounds)
+
     init_guess = np.mean(combined_design_points, axis=0)
     result = minimize(objective_function, x0=init_guess, bounds=optimize_bounds, method='Nelder-Mead', tol=1e-4)
+
+    optimal_vd_values = result.x
+    logger.debug("OPTIMAL VD VALUES")
+    logger.debug(optimal_vd_values)
+
+    logger.debug(simres.designs[0].vd_design_values)
+    translated_optimal_vd_values = []
+    for i, vd in enumerate(simres.designs[0].vd_design_values):
+        logger.debug(vd)
+        if vd.vd_id in non_numeric_values:
+            translated_optimal_vd_values.append(reverse_vd_mapping_dict[vd.vd_id][int(round(optimal_vd_values[i]))])
+        else:
+            translated_optimal_vd_values.append(optimal_vd_values[i])
+
     predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
 
-    def translate_back(result, reverse_mapping_dict):
-        translated_back = []
-        for i, val in enumerate(result):
-            for vd_id, mapping in reverse_mapping_dict.items():
-                if val in mapping:
-                    translated_back.append(mapping[val])
-                    break
-            else:
-                translated_back.append(val)
-        return translated_back
-
-    # Translate back the result
-    translated_result = translate_back(result.x, reverse_vd_mapping_dict)
-
     # Print the translated result
-    logger.debug(translated_result)
+    logger.debug(translated_optimal_vd_values)
     logger.debug(predicted_spv)
 
-    return [ValueDriverDesignValue(vd_id=vd.vd_id, value=translated_result[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
+    return [ValueDriverDesignValue(vd_id=vd.vd_id, value=translated_optimal_vd_values[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
 
 

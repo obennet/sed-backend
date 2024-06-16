@@ -891,7 +891,6 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
 
     spv_values = [run.surplus_value_end_result for run in simres.runs]
 
-    # Create mapping dictionaries
     vd_mapping_dict = {vd_id: {val: idx for idx, val in enumerate(values)} for vd_id, values in
                        non_numeric_values.items()}
     reverse_vd_mapping_dict = {vd_id: {idx: val for val, idx in values.items()} for vd_id, values in
@@ -899,7 +898,6 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     logger.debug("vd_values")
     logger.debug(vd_values)
 
-    # Translate vd_values using the mapping dictionaries
     def translate_values(vd_list, mapping_dict):
         translated_list = []
         for vd_id, val in vd_list:
@@ -909,7 +907,6 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
                 translated_list.append(float(val))
         return translated_list
 
-    # Apply the translation to create the updated vd_values
     translated_vd_values = [translate_values(vd_list, vd_mapping_dict) for vd_list in vd_values]
 
     formatted_data = {}
@@ -929,6 +926,8 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
         design_points.append(design_data['vds'])
         spv_values.append(design_data['spv'])
 
+    # This part almost exactly like jupyter notebook model part relies on the data format being the same as
+    # the jupyter notebook
     design_points = np.array(design_points)
     spv_values = np.array(spv_values)
 
@@ -960,23 +959,24 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
         _predicted_spv = kriging_model_combined.predict_values(np.array([_vd_values]))[0][0]
         return -_predicted_spv
 
-    optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
+    #optimize_bounds = [(np.min(combined_design_points[:, i]), np.inf) for i in range(combined_design_points.shape[1])]
+
+    optimize_bounds = [(np.min(combined_design_points[:, i]),
+                        np.max(combined_design_points[:, i])) if vd_id not in vd_mapping_dict.keys()
+                       else (min(vd_mapping_dict[vd_id].values()), max(vd_mapping_dict[vd_id].values())) for i, vd_id in
+                       enumerate(vd_mapping_dict.keys())]
     init_guess = np.mean(combined_design_points, axis=0)
     result = minimize(objective_function, x0=init_guess, bounds=optimize_bounds, method='Nelder-Mead', tol=1e-4)
-
-    optimal_vd_values = result.x
     predicted_spv = kriging_model_combined.predict_values(np.array([result.x]))[0][0]
 
     def translate_back(result, reverse_mapping_dict):
         translated_back = []
         for i, val in enumerate(result):
-            # Check if it's an index that needs to be translated back
             for vd_id, mapping in reverse_mapping_dict.items():
                 if val in mapping:
                     translated_back.append(mapping[val])
                     break
             else:
-                # If no mapping found, keep the numeric value
                 translated_back.append(val)
         return translated_back
 
@@ -987,6 +987,6 @@ def get_surrogate_model(db_connection: PooledMySQLConnection, user_id, file_id):
     logger.debug(translated_result)
     logger.debug(predicted_spv)
 
-    return [ValueDriverDesignValue(vd_id=vd.id, value=translated_result[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
+    return [ValueDriverDesignValue(vd_id=vd.vd_id, value=translated_result[i]) for i, vd in enumerate(simres.designs[0].vd_design_values)]
 
 

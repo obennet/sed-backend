@@ -21,15 +21,15 @@ jobs:
 
       - name: Clear environment
         run: |
-          docker-compose down --volumes
+          docker compose down --volumes
 
       - name: Build environment
         run: |
-          docker-compose build
+          docker compose build
 
       - name: Run environment
         run: |
-          docker-compose up -d
+          docker compose up -d
 
       # Run tests inside docker environment
       - name: Run tests

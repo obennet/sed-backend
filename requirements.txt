@@ -3,6 +3,7 @@ desim-tool==0.4.8
 fastapi==0.95.1
 mvmlib==0.5.9
 mysql-connector-python==8.0.33
+numpy==1.26.4
 pandas==2.0.0
 passlib==1.7.4
 pyparsing==3.0.9
@@ -16,3 +17,4 @@ python-magic==0.4.27
 pytest==7.3.1
 httpx==0.24.0
 plusminus==0.7.0
+smt
